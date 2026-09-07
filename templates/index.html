@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Небо — спільний трекер повітряних цілей</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar__title">
+    <span class="topbar__dot" id="connDot"></span>
+    <h1>Небо</h1>
+    <span class="topbar__subtitle">спільний трекер повітряних цілей</span>
+  </div>
+  <div class="topbar__stats">
+    <span id="activeCount">0</span> активних цілей
+  </div>
+</header>
+
+<div class="disclaimer">
+  Доповнення до офіційних попереджень (ДСНС, Повітряні сили), не заміна їм. Дані вносять користувачі — перевіряйте офіційні тривоги.
+</div>
+
+<main id="map"></main>
+
+<section class="deck">
+  <nav class="deck__tabs" role="tablist">
+    <button class="deck__tab is-active" data-tab="add" role="tab">Нова ціль</button>
+    <button class="deck__tab" data-tab="list" role="tab">Активні цілі <span id="tabCount">(0)</span></button>
+  </nav>
+
+  <div class="deck__identity">
+    <label for="callsign">Ваш позивний / область</label>
+    <input id="callsign" type="text" placeholder="напр. Полтава-спостерігач" maxlength="40">
+  </div>
+
+  <!-- ================= ФОРМА ДОДАВАННЯ ================= -->
+  <form class="panel panel--add is-active" id="addForm" data-panel="add">
+
+    <div class="field-row field-row--types">
+      <label class="type-choice" data-type="shahed">
+        <input type="radio" name="type" value="shahed" checked>
+        <span class="type-choice__icon" data-icon="shahed"></span>
+        <span>Shahed-136</span>
+      </label>
+      <label class="type-choice" data-type="geran">
+        <input type="radio" name="type" value="geran">
+        <span class="type-choice__icon" data-icon="geran"></span>
+        <span>Герань-2</span>
+      </label>
+      <label class="type-choice" data-type="jet_shahed">
+        <input type="radio" name="type" value="jet_shahed">
+        <span class="type-choice__icon" data-icon="jet_shahed"></span>
+        <span>Реактивний Shahed</span>
+      </label>
+      <label class="type-choice" data-type="missile">
+        <input type="radio" name="type" value="missile">
+        <span class="type-choice__icon" data-icon="missile"></span>
+        <span>Крилата ракета</span>
+      </label>
+      <label class="type-choice" data-type="ballistic">
+        <input type="radio" name="type" value="ballistic">
+        <span class="type-choice__icon" data-icon="ballistic"></span>
+        <span>Балістична ракета</span>
+      </label>
+    </div>
+    <p class="hint" id="ballisticHint" hidden>
+      Балістична ракета летить лічені хвилини — спільне відстеження по областях тут малоефективне, покладайтесь на офіційну тривогу.
+    </p>
+
+    <div class="field-row">
+      <div class="field field--grow">
+        <label>Точка пуску</label>
+        <div class="field__inline">
+          <input type="text" id="launchName" placeholder="напр. Приморсько-Ахтарськ">
+          <button type="button" class="btn-ghost" id="pickLaunchBtn">Клік на мапі</button>
+        </div>
+        <div class="field__coords">
+          <input type="number" step="0.0001" id="launchLat" placeholder="широта">
+          <input type="number" step="0.0001" id="launchLng" placeholder="довгота">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Напрямок руху: <span id="dirValue">0°</span></label>
+        <div class="field__inline field__inline--compass">
+          <input type="range" id="direction" min="0" max="359" value="0" class="compass">
+          <span class="compass-arrow" id="dirArrow">▲</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Швидкість, км/год</label>
+        <input type="number" id="speed" value="180">
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Час пуску / фіксації</label>
+        <input type="datetime-local" id="launchedAt">
+      </div>
+      <div class="field field--grow">
+        <label>Можливі області залучення</label>
+        <div class="oblast-grid" id="oblastGrid"></div>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field field--grow">
+        <label>Коментар / поправка</label>
+        <textarea id="note" rows="2" placeholder="напр. курс змінився на південний захід, ймовірно йде на Кременчук"></textarea>
+      </div>
+    </div>
+
+    <div class="field-row field-row--submit">
+      <span class="hint hint--inline">Клікніть на мапу, щоб поставити точку пуску</span>
+      <button type="submit" class="btn-primary">Додати ціль</button>
+    </div>
+  </form>
+
+  <!-- ================= СПИСОК ЦІЛЕЙ ================= -->
+  <div class="panel panel--list" id="listPanel" data-panel="list">
+    <div id="trackList" class="track-list"></div>
+    <p class="empty-state" id="emptyState">Активних цілей немає. Додайте першу через вкладку «Нова ціль».</p>
+  </div>
+</section>
+
+<!-- ============ Шаблон картки цілі в панелі деталей ============ -->
+<template id="trackDetailTemplate">
+  <div class="track-detail">
+    <div class="track-detail__head">
+      <span class="track-detail__badge"></span>
+      <h3 class="track-detail__title"></h3>
+      <button type="button" class="btn-ghost btn-ghost--danger" data-action="delete">Прибрати</button>
+    </div>
+    <div class="track-detail__meta"></div>
+
+    <div class="track-detail__row">
+      <label>Статус</label>
+      <select data-field="status">
+        <option value="active">У польоті</option>
+        <option value="downed">Збито</option>
+        <option value="impact">Влучання / падіння</option>
+        <option value="lost">Втрачено спостереження</option>
+      </select>
+    </div>
+
+    <div class="track-detail__row">
+      <label>Поточна позиція (клік на мапі або вручну)</label>
+      <div class="field__coords">
+        <input type="number" step="0.0001" data-field="current_lat">
+        <input type="number" step="0.0001" data-field="current_lng">
+        <button type="button" class="btn-ghost" data-action="pick-current">Клік на мапі</button>
+      </div>
+    </div>
+
+    <div class="track-detail__row">
+      <label>Напрямок: <span data-field="direction_deg_label"></span></label>
+      <div class="field__inline field__inline--compass">
+        <input type="range" min="0" max="359" data-field="direction_deg" class="compass">
+        <span class="compass-arrow" data-field="direction_arrow">▲</span>
+      </div>
+    </div>
+
+    <div class="track-detail__row">
+      <label>Можливі області</label>
+      <div class="oblast-grid" data-field="oblast_grid"></div>
+    </div>
+
+    <div class="track-detail__row">
+      <label>Додати поправку</label>
+      <div class="field__inline">
+        <textarea rows="2" data-field="new_note" placeholder="Що змінилось і чому"></textarea>
+        <button type="button" class="btn-primary" data-action="add-note">Додати</button>
+      </div>
+    </div>
+
+    <div class="notes-log" data-field="notes_log"></div>
+  </div>
+</template>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+<script src="{{ url_for('static', filename='js/icons.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

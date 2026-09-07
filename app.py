@@ -392,9 +392,12 @@ init_db()  # виконується завжди при імпорті моду�
            # а й під gunicorn/flask run, інакше таблиці ніколи не створяться.
 
 if __name__ == "__main__":
+    # Render/Fly/Railway тощо задають порт через змінну середовища PORT
+    # і надсилають трафік саме на нього; локально лишається 5000.
+    port = int(os.environ.get("PORT", 5000))
     # debug вимкнено за замовчуванням: вбудований дебагер Flask/Werkzeug
     # дозволяє виконання довільного коду й не повинен бути доступним
     # нікому, крім вас, на localhost. Для локальної розробки можна
     # тимчасово увімкнути: FLASK_DEBUG=1 python app.py
     debug_mode = os.environ.get("FLASK_DEBUG") == "1"
-    socketio.run(app, host="0.0.0.0", port=5000, debug=debug_mode)
+    socketio.run(app, host="0.0.0.0", port=port, debug=debug_mode)

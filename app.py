@@ -400,4 +400,11 @@ if __name__ == "__main__":
     # нікому, крім вас, на localhost. Для локальної розробки можна
     # тимчасово увімкнути: FLASK_DEBUG=1 python app.py
     debug_mode = os.environ.get("FLASK_DEBUG") == "1"
-    socketio.run(app, host="0.0.0.0", port=port, debug=debug_mode)
+    # allow_unsafe_werkzeug: без eventlet/gevent Flask-SocketIO 5.x
+    # відмовляється стартувати на хостингу (Render, Fly тощо), вважаючи
+    # це "продакшном". Для нашого масштабу (волонтерський моніторинг,
+    # не тисячі одночасних з'єднань) вбудований сервер — прийнятний
+    # компроміс; при потребі в реальному масштабуванні замініть на
+    # eventlet/gevent + gunicorn (див. README, розділ "Розгортання").
+    socketio.run(app, host="0.0.0.0", port=port, debug=debug_mode,
+                 allow_unsafe_werkzeug=True)
